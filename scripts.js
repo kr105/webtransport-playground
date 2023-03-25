@@ -8,6 +8,9 @@ var reliableReader = null;
 const encoder = new TextEncoder('utf-8');
 const decoder = new TextDecoder('utf-8');
 
+// Indicators
+const connectionStatus = document.getElementById("connectionStatus");
+
 // Buttons
 const btnConnect = document.getElementById("btnConnect");
 const btnSend = document.getElementById("btnSend");
@@ -35,6 +38,22 @@ function log(textArea, message) {
 
 function logError(textArea, message) {
     log(textArea, '[ERROR] ' + message);
+}
+
+function updateConnectionStatus(status) {
+    if (status === "connecting") {
+        connectionStatus.textContent = "Connecting";
+        connectionStatus.className = "bg-yellow-300 text-white text-xs font-bold rounded-full px-2 py-1";
+    } else if (status === "connected") {
+        connectionStatus.textContent = "Connected";
+        connectionStatus.className = "bg-green-500 text-white text-xs font-bold rounded-full px-2 py-1";
+    } else if (status === "disconnected") {
+        connectionStatus.textContent = "Disconnected";
+        connectionStatus.className = "bg-gray-300 text-white text-xs font-bold rounded-full px-2 py-1";
+    } else if (status === "error") {
+        connectionStatus.textContent = "Error";
+        connectionStatus.className = "bg-red-500 text-white text-xs font-bold rounded-full px-2 py-1";
+    }
 }
 
 async function send() {
@@ -89,13 +108,21 @@ async function unreliableLoop() {
 
 async function connect() {
     try {
+        updateConnectionStatus("connecting");
+
         const url = txtServerUrl.value;
         transport = new WebTransport(url);
 
         // Set up functions to respond to the connection closing
         transport.closed
-            .then(() => logError(txtMainLog, `The connection to ${url} closed gracefully.`))
-            .catch((error) => logError(txtMainLog, `The connection to ${url} closed due to ${error}.`));
+            .then(() => {
+                logError(txtMainLog, `The connection to ${url} closed gracefully.`);
+                updateConnectionStatus("disconnected");
+            })
+            .catch((error) => {
+                logError(txtMainLog, `The connection to ${url} closed due to ${error}.`);
+                updateConnectionStatus("error");
+            });
 
         log(txtMainLog, `Connecting to ${url} ...`);
 
@@ -103,11 +130,14 @@ async function connect() {
         await transport.ready;
     } catch (e) {
         logError(txtMainLog, `Connection failed. ${e}`);
+        updateConnectionStatus("error");
         return;
     }
 
     // We should be OK at this point
     log(txtMainLog, 'Connected succesfully');
+
+    updateConnectionStatus("connected");
 
     btnSend.disabled = false;
 
